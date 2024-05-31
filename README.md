@@ -2,7 +2,7 @@
 System Admin/System Repair scripts
 
 ## SETUP
-To get started, grab a flash drive that is at least 4GB in size, click [this link to download the setup program](Windows/setup_RepairTools.bat?raw=1), move it to the flash drive, then run it!
+To get started, grab a flash drive that is at least 4GB in size, click [this link to download the setup program](Windows/setup_RepairTools.bat), then click the download button. Afterwards, move it to the flash drive, then run it!
 
 ## Usage
 Just right click on `autorun.bat`, and click `Run as Administrator`.
