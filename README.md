@@ -13,7 +13,7 @@ Just right click on `autorun.bat`, and click `Run as Administrator`.
 
 
 ## Linux
-Coming soon!
+Linux Development is underway! There is no setup script yet. But, there is already code to check for corrupt files on Debian-based distros
 
 ## MacOS
 Coming soon!
