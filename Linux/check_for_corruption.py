@@ -22,14 +22,14 @@
 #
 #
 """Check Cryptographic verity of installed packages"""
-print("Loading", end="", flush=True)
-import crypto_verity
 import hashlib
 import time
 import os
 import multiprocessing as multiproc
-import psutil
 import math
+import psutil
+import crypto_verity
+print("Loading", end="", flush=True)
 real_start = time.time()
 
 md5sums = crypto_verity.loader.load_md5s()
@@ -38,22 +38,22 @@ conffiles = crypto_verity.loader.load_conffiles()
 print(".", end="", flush=True)
 
 # Setup for multithreading versions
-core_count = psutil.cpu_count()
+CORE_COUNT = psutil.cpu_count()
 #core_count = 2
-if core_count > 4:
-    core_count = math.ceil(core_count / 2)
+if CORE_COUNT > 4:
+    CORE_COUNT = math.ceil(CORE_COUNT / 2)
 
 # define how many files each thread should scan
-work_load_size = math.ceil(len(md5sums) / core_count)
-work_load = [{}]
-count = 0
-for each in md5sums:
-    if count < work_load_size:
-        work_load[-1][each] = md5sums[each]
-        count+=1
+WORK_LOAD_SIZE = math.ceil(len(md5sums) / CORE_COUNT)
+WORK_LOAD = [{}]
+COUNT = 0
+for each in md5sums.items():
+    if COUNT < WORK_LOAD_SIZE:
+        WORK_LOAD[-1][each[0]] = each[1]
+        COUNT+=1
     else:
-        work_load.append({each: md5sums[each]})
-        count = 1
+        WORK_LOAD.append({each[0]: each[1]})
+        COUNT = 1
         print(".", end="", flush=True)
 
 
@@ -61,42 +61,42 @@ print("Done!")
 
 
 def scan(md5_list: dict, conf_list: list) -> dict:
-    start = time.time()
-    corrupted = []
-    missing = []
-    scanned = 0
-    for each in md5_list:
-        if each in conf_list:
-            print(f"{each}: SKIPPING!!!")
+    """Perform file system scan"""
+    local_corrupted = []
+    local_missing = []
+    local_scanned = 0
+    for local_each in md5_list:
+        if local_each in conf_list:
+            print(f"{local_each}: SKIPPING!!!")
             continue
-        scanned+=1
-        if not os.path.exists(each):
-            print(f"{each}: MISSING!!!")
-            if each[:14] == "/usr/share/man":
+        local_scanned+=1
+        if not os.path.exists(local_each):
+            print(f"{local_each}: MISSING!!!")
+            if local_each[:14] == "/usr/share/man":
                 print("File is man page. Not concerned...")
                 continue
-            elif ("translations" in each) or ("locale" in each):
+            if ("translations" in local_each) or ("locale" in local_each):
                 print("File is translation/locale file. Not concerned...")
                 continue
-            elif ("help" in each):
+            if "help" in local_each:
                 print("File is likely help documentation. No concerned...")
                 continue
-            missing.append(each)
+            local_missing.append(local_each)
             continue
         try:
-            md5 = hashlib.md5(open(each,'rb').read()).hexdigest()
+            with open(local_each,'rb') as file:
+                md5 = hashlib.md5(file.read()).hexdigest()
         except PermissionError:
-            print(f"{each}: PERMISSION DENIED")
-        if md5 == md5sums[each]:
-            print(f"{each}: OK")
+            print(f"{local_each}: PERMISSION DENIED")
+        if md5 == md5sums[local_each]:
+            print(f"{local_each}: OK")
         else:
-            print(f"{each}: CORRUPTED!!!")
-            if not crypto_verity.loader.has_diversion(each):
-                corrupted.append(each)
+            print(f"{local_each}: CORRUPTED!!!")
+            if not crypto_verity.loader.has_diversion(local_each):
+                local_corrupted.append(local_each)
             else:
                 print("Has a diversion. Ignoring...")
-    end = time.time()
-    return {"M": missing, "C": corrupted, "T": end-start, "S": scanned}
+    return {"M": local_missing, "C": local_corrupted, "S": local_scanned}
 
 time.sleep (0.25)
 print("Scanning...")
@@ -122,28 +122,30 @@ def boilerplate(workload, queue):
 # set up threads
 queues = []
 threads = []
-for each in work_load:
+for each in WORK_LOAD:
     queues.append(multiproc.Queue())
-    threads.append(multiproc.Process(target=boilerplate, args=({"M": each, "C": conffiles}, queues[-1])))
+    threads.append(multiproc.Process(target=boilerplate,
+                                     args=({"M": each,
+                                            "C": conffiles},
+                                     queues[-1])))
     threads[-1].start()
 
 # monitor their progress
-count = len(threads)
+COUNT = len(threads)
 # agregate data once complete
 corrupted = []
 missing = []
-scan_run_time = 0
-scanned = 0
-while count > 0:
+SCANNED = 0
+while COUNT > 0:
     for each in queues:
         if each.qsize() == 1:
             output = each.get()
             corrupted+=output["C"]
             missing+=output["M"]
-            scanned+=output["S"]
+            SCANNED+=output["S"]
             #each.task_done()
             threads[queues.index(each)].join()
-            count-=1
+            COUNT-=1
     time.sleep(0.01)
 
 end = time.time()
@@ -156,7 +158,7 @@ if (len(missing) + len(corrupted)) > 0:
     print("\nIt appears you have missing or corrupt files.")
     print(f"To fix them, you need to re-install these packages:\n{' '.join(packages_to_reinstall)}")
     start_freeze = time.time()
-    ans = input (f"Would you like for me to re-install these for you? [Y/n]: ")
+    ans = input ("Would you like for me to re-install these for you? [Y/n]: ")
     end_freeze = time.time()
     if ans.lower() in ("y", "yes", "yeah", "sure", "yep", "go ahead", "1"):
         crypto_verity.loader.reinstall_pkgs(packages_to_reinstall)
@@ -167,14 +169,14 @@ else:
 
 real_end = time.time()
 full_run_time = (real_end - real_start) - (end_freeze - start_freeze)
-scan_run_time = end - start
+SCAN_RUN_TIME = end - start
 print(f"""
 {'=' * 25}
 #    SCAN STATISTICS    #
 {'=' * 25}
-Scan time:       {"%.2f" % scan_run_time} seconds
-Total time:      {"%.2f" % full_run_time} seconds
-Files scanned:   {scanned}
+Scan time:       {SCAN_RUN_TIME:.2f} seconds
+Total time:      {full_run_time:.2f} seconds
+Files scanned:   {SCANNED}
 Corrupted files: {len(corrupted)}
 Missing files:   {len(missing)}
 """)
