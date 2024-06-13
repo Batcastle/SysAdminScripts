@@ -26,24 +26,22 @@ import os
 
 # We need to detect what package manager the system has so we can refrence that for MD5 sums
 PATH = os.environ["PATH"].split(":")
-pkgmgmnt = None
+PKGMGMNT = None
 for each in PATH:
     try:
         if "apt" in os.listdir(each):
-            pkgmgmnt = "apt"
+            PKGMGMNT = "apt"
             # apt found
             break
     except FileNotFoundError:
         # file does not exist. Skipping...
         pass
 
-if pkgmgmnt is None:
-    # No known package manager found. Exiting...
-    exit(1)
+if PKGMGMNT is None:
+    raise OSError("No known package manager found")
 
-if pkgmgmnt == "apt":
+if PKGMGMNT == "apt":
     import crypto_verity.dpkg as loader
 
-del each, PATH, pkgmgmnt
+del each, PATH, PKGMGMNT
 del dpkg
-

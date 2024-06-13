@@ -25,15 +25,14 @@
 import os
 import subprocess as subproc
 
-_dpkg_cache = "/var/lib/dpkg/info"
-if not os.path.exists(_dpkg_cache):
-    print("DPKG cache directory does not exist. Cannot operate. Exiting...")
-    exit(1)
+_DPKG_CACHE = "/var/lib/dpkg/info"
+if not os.path.exists(_DPKG_CACHE):
+    raise FileNotFoundError("DPKG cache directory does not exist. Cannot operate. Exiting...")
 
 
 def load_md5s() -> list:
     """Load MD5 sums to memory"""
-    md5_files = [f"{_dpkg_cache}/{each}" for each in os.listdir(_dpkg_cache) if "md5sums" in each]
+    md5_files = [f"{_DPKG_CACHE}/{each}" for each in os.listdir(_DPKG_CACHE) if "md5sums" in each]
     md5_sums = {}
     for each in md5_files:
         with open(each, "r") as file:
@@ -47,7 +46,7 @@ def load_md5s() -> list:
 
 def load_conffiles() -> list:
     """Load list of conffiles into memory"""
-    conf_files_files = [f"{_dpkg_cache}/{each}" for each in os.listdir(_dpkg_cache) if "conffiles" in each]
+    conf_files_files = [f"{_DPKG_CACHE}/{each}" for each in os.listdir(_DPKG_CACHE) if "conffiles" in each]
     conf_files = []
     for each in conf_files_files:
         with open(each, "r") as file:
@@ -62,7 +61,7 @@ def files_to_packages(files: list) -> list:
     """Take a list of files and provide the packages they belong to."""
     pkgs = []
     for each in files:
-        pkg = subproc.check_output(["dpkg", "-S", each]).decode().split(": ")[0]
+        pkg = subproc.check_output(["dpkg", "-S", each]).decode().split(": ", maxsplit=1)[0]
         if pkg not in pkgs:
             pkgs.append(pkg)
     return pkgs
