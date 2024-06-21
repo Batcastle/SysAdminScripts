@@ -31,7 +31,7 @@ if not os.path.exists(_dpkg_cache):
     exit(1)
 
 
-def load_md5s() -> list:
+def load_md5s() -> dict:
     """Load MD5 sums to memory"""
     md5_files = [f"{_dpkg_cache}/{each}" for each in os.listdir(_dpkg_cache) if "md5sums" in each]
     md5_sums = {}
